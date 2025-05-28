@@ -22,11 +22,15 @@ import {
   MenubarTrigger,
 } from "@/components/ui/menubar"
 
+// ShadeCN Mode Toggle (for light/dark/system)
+import { ModeToggle } from "@/components/mode-toggle"
+
+// Show/Hide History animation
+import { motion, AnimatePresence } from "framer-motion";
+
 
 // ShadCN Button
 import { Button } from "@/components/ui/button"
-
-
 
 interface SquareProps {
   value: string | null;
@@ -94,18 +98,17 @@ function Board({ xIsNext, squares, onPlay }: BoardProps) {
       </CardContent>
     </Card>
   );
-
-  // Menubar (ShadCN Component)
 }
 
 export default function Game() {
   const [history, setHistory] = useState<(string | null)[][]>([Array(9).fill(null)]);
   const [currentMove, setCurrentMove] = useState<number>(0);
+  const [showHistory, setShowHistory] = useState(true); // ✅ now inside component
   const xIsNext = currentMove % 2 === 0;
   const currentSquares = history[currentMove];
 
   function handlePlay(nextSquares: (string | null)[]) {
-    const nextHistory = [...history.slice(0, currentMove + 1), nextSquares]
+    const nextHistory = [...history.slice(0, currentMove + 1), nextSquares];
     setHistory(nextHistory);
     setCurrentMove(nextHistory.length - 1);
   }
@@ -114,69 +117,109 @@ export default function Game() {
     setCurrentMove(nextMove);
   }
 
+  function toggleHistory() {
+    setShowHistory(prev => !prev);
+  }
+
   const moves = history.map((squares, move) => {
-    let description;
-    if (move > 0) {
-      description = 'Go to move #' + move;
-    }
-    else {
-      description = 'Go to game start:';
-    }
+    const description = move > 0 ? `Go to move #${move}` : 'Go to game start:';
     return (
-      <li key={move} style={{ 
-        display: 'inline-block',
-        marginBottom: '10px',
-        width: move === 0 ? '100%' : '32%'
-      }}>
-        <button 
+      <li key={move} style={{ display: 'inline-block', marginBottom: '10px', width: move === 0 ? '100%' : '32%' }}>
+        <button
           onClick={() => jumpTo(move)}
           className={`px-3 py-1 rounded text-sm transition ${
             move === 0
               ? 'bg-muted hover:bg-muted/80'
               : 'bg-secondary hover:bg-secondary/80'
           }`}
-          >{description}
-          
-
+        >
+          {description}
         </button>
       </li>
     );
   });
-  
-  // Game History (ShadCN Card)
+
   return (
-    <div className="container" style={{
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      margin: 0,
-      padding: '20px',
-      gap: '20px'
-    }}>
+    <div className="container flex flex-col items-center justify-center min-h-screen gap-5 p-5">
+        <Menubar
+          className="fixed top-0 left-0 z-50 flex items-center gap-4 px-4 py-2 rounded-none rounded-br-md 
+                    bg-background text-foreground shadow-sm border border-border"
+        >
+          <span className="font-semibold text-lg italic cursor-default select-none">
+            TicTacToe
+          </span>
+
+          <div className="h-5 w-px bg-border" />
+
+          <span
+            onClick={toggleHistory}
+            className="text-sm cursor-pointer text-muted-foreground transition-all duration-200 hover:text-foreground hover:scale-[1.05] select-none"
+          >
+            {showHistory ? "Hide History" : "Show History"}
+          </span>
+
+          <div className="h-5 w-px bg-border" />
+
+          <ModeToggle />
+        </Menubar>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       <div className="game-board">
         <Board xIsNext={xIsNext} squares={currentSquares} onPlay={handlePlay} />
       </div>
-      <Card style={{ width: '100%', maxWidth: '600px' }}
-            className="hover:shadow-lg transition-shadow duration-300">
-        <CardHeader>
-          <CardTitle>Game History</CardTitle>
-          <CardDescription>View and jump to previous moves:</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ol className="moves-list" style={{ 
-            paddingLeft: '20px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '2%',
-            margin: 0
-          }}>{moves}</ol>
-        </CardContent>
-      </Card>
+
+      <AnimatePresence mode="wait">
+        {showHistory && (
+          <motion.div
+            key="history"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="w-full max-w-[600px]"
+          >
+            <Card className="w-full max-w-[600px] transition-all duration-500 ease-in-out hover:shadow-lg">
+              <CardHeader>
+                <CardTitle>Game History</CardTitle>
+                <CardDescription>View and jump to previous moves:</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ol className="moves-list" style={{
+                  paddingLeft: "20px",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "2%",
+                  margin: 0
+                }}>
+                  {moves}
+                </ol>
+            </CardContent>
+            </Card>
+          </motion.div>
+        )}
+        </AnimatePresence>
+
+
+
     </div>
   );
 }
+
 
 function calculateWinner(squares: (string | null)[]) {
   const lines = [

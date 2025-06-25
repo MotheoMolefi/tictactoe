@@ -1,243 +1,274 @@
-"use client"
+"use client";
 
-import { use, useState } from "react";
+import * as z from "zod";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
+import { signUp } from "@/app/api/user";
+import { useRouter } from "next/navigation";
+import { OTPInput } from "@/components/otp-input";
+import { Session } from "@supabase/supabase-js";
+import { setAuthCookies } from "@/app/actions/auth";
+import { DataObject } from "./api/verify";
 
-// ShadCN Card
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+const formSchema = z.object({
+  username: z.string().min(2, {
+    message: "Username must be at least 2 characters.",
+  }),
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
+  password: z.string().min(8, {
+    message: "Password must be at least 8 characters.",
+  }),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
 
-// ShadCN MenuBar
-import {
-  Menubar,
-  MenubarContent,
-  MenubarItem,
-  MenubarMenu,
-  MenubarSeparator,
-  MenubarShortcut,
-  MenubarTrigger,
-} from "@/components/ui/menubar"
+type FormData = z.infer<typeof formSchema>;
 
-// ShadeCN Mode Toggle (for light/dark/system)
-import { ModeToggle } from "@/components/mode-toggle"
-
-// Show/Hide History animation
-import { motion, AnimatePresence } from "framer-motion";
-
-
-// ShadCN Button
-import { Button } from "@/components/ui/button"
-
-interface SquareProps {
-  value: string | null;
-  onSquareClick: () => void;
+interface OTPInputProps {
+  length?: number;
+  onComplete: (otp: string) => void;
+  className?: string;
+  email: string;
+  onVerificationSuccess?: (session: Session) => void;
+  onVerificationError?: (error: string) => void;
 }
 
-function Square({ value, onSquareClick }: SquareProps) {
-  return (
-    <button
-      onClick={onSquareClick}
-      className="w-15 h-15 text-xl font-bold flex items-center justify-center border border-border rounded-md transition-shadow duration-300 hover:shadow-xl"
-    >
-      {value}
-    </button>
-  );
-}
-
-interface BoardProps {
-  xIsNext: boolean;
-  squares: (string | null)[];
-  onPlay: (squares: (string | null)[]) => void;
-}
-
-function Board({ xIsNext, squares, onPlay }: BoardProps) {
-  function handleClick(i: number) {
-    // If square is already filled
-    if (calculateWinner(squares) || squares[i]) {
-      return;
-    }
-    // Create copy of squares array (immutablility)
-    const nextSquares = squares.slice();
-    if (xIsNext) {
-      nextSquares[i] = 'X';
-    }
-    else {
-      nextSquares[i] = 'O';
-    }
-    onPlay(nextSquares);
-  }
-
-  const winner = calculateWinner(squares);
-  let status;
-  if (winner) {
-    status = 'Winner: ' + winner;
-  }
-  else {
-    status = 'Next player: ' + (xIsNext ? 'X': 'O');
-  }
-  
-  // Tic-Tac-Toe Board (ShadCN Card)
-  return (
-    <Card className="w-full max-w-[400px] mx-auto flex flex-col items-center hover:shadow-lg transition-shadow duration-300">
-      <CardHeader style={{ width: '100%', textAlign: 'center' }}>
-        <CardTitle>Tic-Tac-Toe</CardTitle>
-        <CardDescription>Connect three to win!</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col items-center gap-4">
-        <div className="text-lg font-medium">{status}</div>
-
-        <div className="grid grid-cols-3 gap-2">
-          {squares.map((value, index) => (
-            <Square key={index} value={value} onSquareClick={() => handleClick(index)} />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export default function Game() {
-  const [history, setHistory] = useState<(string | null)[][]>([Array(9).fill(null)]);
-  const [currentMove, setCurrentMove] = useState<number>(0);
-  const [showHistory, setShowHistory] = useState(true); // ✅ now inside component
-  const xIsNext = currentMove % 2 === 0;
-  const currentSquares = history[currentMove];
-
-  function handlePlay(nextSquares: (string | null)[]) {
-    const nextHistory = [...history.slice(0, currentMove + 1), nextSquares];
-    setHistory(nextHistory);
-    setCurrentMove(nextHistory.length - 1);
-  }
-
-  function jumpTo(nextMove: number) {
-    setCurrentMove(nextMove);
-  }
-
-  function toggleHistory() {
-    setShowHistory(prev => !prev);
-  }
-
-  const moves = history.map((squares, move) => {
-    const description = move > 0 ? `Go to move #${move}` : 'Go to game start:';
-    return (
-      <li key={move} style={{ display: 'inline-block', marginBottom: '10px', width: move === 0 ? '100%' : '32%' }}>
-        <button
-          onClick={() => jumpTo(move)}
-          className={`px-3 py-1 rounded text-sm transition ${
-            move === 0
-              ? 'bg-muted hover:bg-muted/80'
-              : 'bg-secondary hover:bg-secondary/80'
-          }`}
-        >
-          {description}
-        </button>
-      </li>
-    );
+export default function SignUpPage() {
+  const router = useRouter();
+  const [formData, setFormData] = useState<FormData>({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   });
+  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [showOTP, setShowOTP] = useState(false);
+  const [otpError, setOtpError] = useState<string>("");
+  const [otpValue, setOtpValue] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Function layer:
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear error when user starts typing
+    if (errors[name as keyof FormData]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: undefined
+      }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const validatedData = formSchema.parse(formData);
+      const user = await signUp(validatedData.email, validatedData.password);
+      
+      if (user) {
+        console.log("User signed up successfully:", user);
+        setShowOTP(true);
+      } else {
+        console.error("Failed to sign up user");
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const newErrors: Partial<Record<keyof FormData, string>> = {};
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            newErrors[err.path[0] as keyof FormData] = err.message;
+          }
+        });
+        setErrors(newErrors);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOTPChange = (otp: string) => {
+    setOtpValue(otp);
+    setOtpError(""); // Clear any previous errors
+  };
+
+  const handleVerificationSuccess = async (data: DataObject) => {
+    // Set the JWT token in a cookie using the server action
+    await setAuthCookies(data);
+    router.push("/home");
+  };
+
+  const handleVerificationError = (error: string) => {
+    setOtpError(error);
+  };
+
+  // Animation layer:
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+    },
+  };
+
+  // UI layer: 
   return (
-    <div className="container flex flex-col items-center justify-center min-h-screen gap-5 p-5">
-        <Menubar
-          className="fixed top-0 left-0 z-50 flex items-center gap-4 px-4 py-2 rounded-none rounded-br-md 
-                    bg-background text-foreground shadow-sm border border-border"
-        >
-          <span className="font-semibold text-lg italic cursor-default select-none">
-            TicTacToe
-          </span>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+        className="w-full max-w-md p-8 space-y-8 bg-card rounded-lg shadow-lg"
+      >
+        {!showOTP ? (
+          <>
+            <motion.h1
+              variants={itemVariants}
+              className="text-3xl font-bold text-center text-foreground"
+            >
+              Create an Account
+            </motion.h1>
+            <motion.form
+              onSubmit={handleSubmit}
+              className="space-y-6"
+              variants={containerVariants}
+            >
+              <motion.div variants={itemVariants} className="space-y-2">
+                <label htmlFor="username" className="text-sm font-medium">
+                  Username
+                </label>
+                <Input
+                  id="username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="Enter your username"
+                  className={errors.username ? "border-red-500" : ""}
+                />
+                {errors.username && (
+                  <p className="text-sm text-red-500">{errors.username}</p>
+                )}
+              </motion.div>
 
-          <div className="h-5 w-px bg-border" />
+              <motion.div variants={itemVariants} className="space-y-2">
+                <label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Enter your email"
+                  className={errors.email ? "border-red-500" : ""}
+                />
+                {errors.email && (
+                  <p className="text-sm text-red-500">{errors.email}</p>
+                )}
+              </motion.div>
 
-          <span
-            onClick={toggleHistory}
-            className="text-sm cursor-pointer text-muted-foreground transition-all duration-200 hover:text-foreground hover:scale-[1.05] select-none"
-          >
-            {showHistory ? "Hide History" : "Show History"}
-          </span>
+              <motion.div variants={itemVariants} className="space-y-2">
+                <label htmlFor="password" className="text-sm font-medium">
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Enter your password"
+                  className={errors.password ? "border-red-500" : ""}
+                />
+                {errors.password && (
+                  <p className="text-sm text-red-500">{errors.password}</p>
+                )}
+              </motion.div>
 
-          <div className="h-5 w-px bg-border" />
+              <motion.div variants={itemVariants} className="space-y-2">
+                <label htmlFor="confirmPassword" className="text-sm font-medium">
+                  Confirm Password
+                </label>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="Confirm your password"
+                  className={errors.confirmPassword ? "border-red-500" : ""}
+                />
+                {errors.confirmPassword && (
+                  <p className="text-sm text-red-500">{errors.confirmPassword}</p>
+                )}
+              </motion.div>
 
-          <ModeToggle />
-        </Menubar>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      <div className="game-board">
-        <Board xIsNext={xIsNext} squares={currentSquares} onPlay={handlePlay} />
-      </div>
-
-      <AnimatePresence mode="wait">
-        {showHistory && (
+              <motion.div variants={itemVariants}>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Signing up..." : "Sign Up"}
+                </Button>
+              </motion.div>
+            </motion.form>
+          </>
+        ) : (
           <motion.div
-            key="history"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="w-full max-w-[600px]"
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+            className="space-y-6"
           >
-            <Card className="w-full max-w-[600px] transition-all duration-500 ease-in-out hover:shadow-lg">
-              <CardHeader>
-                <CardTitle>Game History</CardTitle>
-                <CardDescription>View and jump to previous moves:</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ol className="moves-list" style={{
-                  paddingLeft: "20px",
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "2%",
-                  margin: 0
-                }}>
-                  {moves}
-                </ol>
-            </CardContent>
-            </Card>
+            <motion.h1
+              variants={itemVariants}
+              className="text-3xl font-bold text-center text-foreground"
+            >
+              Verify Your Email
+            </motion.h1>
+            <motion.p
+              variants={itemVariants}
+              className="text-center text-muted-foreground"
+            >
+              We've sent a 6-digit code to your email address.
+            </motion.p>
+            <motion.div variants={itemVariants} className="flex flex-col items-center gap-4">
+              <OTPInput 
+                onComplete={handleOTPChange}
+                email={formData.email}
+                onVerificationSuccess={handleVerificationSuccess}
+                onVerificationError={handleVerificationError}
+              />
+            </motion.div>
+            {otpError && (
+              <motion.p
+                variants={itemVariants}
+                className="text-center text-red-500"
+              >
+                {otpError}
+              </motion.p>
+            )}
           </motion.div>
         )}
-        </AnimatePresence>
-
-
-
+      </motion.div>
     </div>
   );
-}
-
-
-function calculateWinner(squares: (string | null)[]) {
-  const lines = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6]
-  ];
-
-  for (let i = 0; i < lines.length; i++) {
-    const [a, b, c] = lines[i];
-    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-      return squares[a];
-    }
-  }
-  return null;
-}
+} 

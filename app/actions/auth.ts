@@ -22,11 +22,11 @@ export async function setAuthCookies(data: DataObject) {
         return // or throw an error
     }
 
-console.log("Access Token:\n"+access_token)
-console.log("Refresh Token:\n"+refresh_token)
-console.log("Expiry Time:\n"+expiry)
-console.log("Cookies are not being set. Session is there but still getting 403 error.")
-console.log("Issue is likely in the middleware.ts...")
+// console.log("Access Token:\n"+access_token)
+// console.log("Refresh Token:\n"+refresh_token)
+// console.log("Expiry Time:\n"+expiry)
+// console.log("Cookies are not being set. Session is there but still getting 403 error.")
+// console.log("Issue is likely in the middleware.ts...")
 
     cookieStore.set('sb-access-token', access_token,{
         path: '/',

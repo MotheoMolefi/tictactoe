@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { DataObject, verifyOTP } from "@/app/api/verify";
-import { Session } from "@supabase/supabase-js";
+// import { Session } from "@supabase/supabase-js"; // NOTE: Only import if you use Session in this file
 
 interface OTPInputProps {
   length?: number;

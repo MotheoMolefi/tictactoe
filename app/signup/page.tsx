@@ -8,13 +8,16 @@ import { useState } from "react";
 import { signUp } from "@/app/api/user";
 import { useRouter } from "next/navigation";
 import { OTPInput } from "@/components/otp-input";
-import { Session } from "@supabase/supabase-js";
+// import { Session } from "@supabase/supabase-js"; // NOTE: Only import if you use Session in this file
 import { setAuthCookies } from "@/app/actions/auth";
 import { DataObject } from "@/app/api/verify";
 
 const formSchema = z.object({
-  username: z.string().min(2, {
-    message: "Username must be at least 2 characters.",
+  firstName: z.string().min(2, {
+    message: "First name must be at least 2 characters.",
+  }),
+  lastName: z.string().min(2, {
+    message: "Last name must be at least 2 characters.",
   }),
   email: z.string().email({
     message: "Please enter a valid email address.",
@@ -30,19 +33,22 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-interface OTPInputProps {
-  length?: number;
-  onComplete: (otp: string) => void;
-  className?: string;
-  email: string;
-  onVerificationSuccess?: (session: Session) => void;
-  onVerificationError?: (error: string) => void;
-}
+// NOTE: The following interface is commented out because it is currently unused.
+// You can use this for type-checking props for a custom OTP input component in the future.
+// interface OTPInputProps {
+//   length?: number;
+//   onComplete: (otp: string) => void;
+//   className?: string;
+//   email: string;
+//   onVerificationSuccess?: (session: Session) => void;
+//   onVerificationError?: (error: string) => void;
+// }
 
 export default function SignUpPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
-    username: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -50,8 +56,13 @@ export default function SignUpPage() {
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [showOTP, setShowOTP] = useState(false);
   const [otpError, setOtpError] = useState<string>("");
-  const [otpValue, setOtpValue] = useState<string>("");
+
+  // NOTE: The following state is commented out because it is currently unused.
+  // You can use this if you want to track the OTP value entered by the user in this component in the future.
+  // const [otpValue, setOtpValue] = useState<string>("");
+
   const [isLoading, setIsLoading] = useState(false);
+  const [generalError, setGeneralError] = useState<string>("");
 
   // Function layer:
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,15 +83,18 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setGeneralError(""); // Clear any previous general errors
+    
     try {
       const validatedData = formSchema.parse(formData);
-      const user = await signUp(validatedData.email, validatedData.password);
+      const user = await signUp(validatedData.email, validatedData.password, validatedData.firstName, validatedData.lastName);
       
       if (user) {
         console.log("User signed up successfully:", user);
         setShowOTP(true);
       } else {
         console.error("Failed to sign up user");
+        setGeneralError("Failed to create account. Please try again.");
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -91,14 +105,15 @@ export default function SignUpPage() {
           }
         });
         setErrors(newErrors);
+      } else {
+        setGeneralError("An unexpected error occurred. Please try again.");
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOTPChange = (otp: string) => {
-    setOtpValue(otp);
+  const handleOTPChange = () => {
     setOtpError(""); // Clear any previous errors
   };
 
@@ -154,22 +169,37 @@ export default function SignUpPage() {
               variants={containerVariants}
             >
               <motion.div variants={itemVariants} className="space-y-2">
-                <label htmlFor="username" className="text-sm font-medium">
-                  Username
+                <label htmlFor="firstName" className="text-sm font-medium">
+                  First Name
                 </label>
                 <Input
-                  id="username"
-                  name="username"
-                  value={formData.username}
+                  id="firstName"
+                  name="firstName"
+                  value={formData.firstName}
                   onChange={handleChange}
-                  placeholder="Enter your username"
-                  className={errors.username ? "border-red-500" : ""}
+                  placeholder="Enter your first name"
+                  className={errors.firstName ? "border-red-500" : ""}
                 />
-                {errors.username && (
-                  <p className="text-sm text-red-500">{errors.username}</p>
+                {errors.firstName && (
+                  <p className="text-sm text-red-500">{errors.firstName}</p>
                 )}
               </motion.div>
-
+              <motion.div variants={itemVariants} className="space-y-2">
+                <label htmlFor="lastName" className="text-sm font-medium">
+                  Last Name
+                </label>
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  placeholder="Enter your last name"
+                  className={errors.lastName ? "border-red-500" : ""}
+                />
+                {errors.lastName && (
+                  <p className="text-sm text-red-500">{errors.lastName}</p>
+                )}
+              </motion.div>
               <motion.div variants={itemVariants} className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium">
                   Email
@@ -224,6 +254,11 @@ export default function SignUpPage() {
                 )}
               </motion.div>
 
+              {generalError && (
+                <motion.div variants={itemVariants}>
+                  <p className="text-sm text-red-500 text-center">{generalError}</p>
+                </motion.div>
+              )}
               <motion.div variants={itemVariants}>
                 {/* Here is the "Sign Up" button */}
                 <Button type="submit" className="w-full" disabled={isLoading}>
@@ -249,7 +284,7 @@ export default function SignUpPage() {
               variants={itemVariants}
               className="text-center text-muted-foreground"
             >
-              We've sent a 6-digit code to your email address.
+              We&apos;ve sent a 6-digit code to your email address.
             </motion.p>
             <motion.div variants={itemVariants} className="flex flex-col items-center gap-4">
               <OTPInput 

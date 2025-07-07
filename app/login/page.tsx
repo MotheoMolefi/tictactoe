@@ -10,6 +10,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 
 const formSchema = z.object({
+  username: z.string().optional(),
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
@@ -23,6 +24,7 @@ type FormData = z.infer<typeof formSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
+    username: "",
     email: "",
     password: "",
   });
@@ -119,6 +121,23 @@ export default function LoginPage() {
           variants={containerVariants}
         >
           <motion.div variants={itemVariants} className="space-y-2">
+            <label htmlFor="username" className="text-sm font-medium">
+              Username
+            </label>
+            <Input
+              id="username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              placeholder="Enter your username (optional)"
+              className={errors.username ? "border-red-500" : ""}
+            />
+            {errors.username && (
+              <p className="text-sm text-red-500">{errors.username}</p>
+            )}
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium">
               Email
             </label>
@@ -173,7 +192,7 @@ export default function LoginPage() {
           variants={itemVariants}
           className="text-center text-muted-foreground text-sm"
         >
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/signup" className="text-primary underline hover:text-primary/80">
             Sign Up
           </Link>

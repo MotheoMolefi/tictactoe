@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState } from "react";
+import { useState } from "react";
 
 // ShadCN Card
 import {
@@ -11,26 +11,23 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-// ShadCN MenuBar
-import {
-  Menubar,
-  MenubarContent,
-  MenubarItem,
-  MenubarMenu,
-  MenubarSeparator,
-  MenubarShortcut,
-  MenubarTrigger,
-} from "@/components/ui/menubar"
-
 // ShadeCN Mode Toggle (for light/dark/system)
 import { ModeToggle } from "@/components/mode-toggle"
 
 // Show/Hide History animation
 import { motion, AnimatePresence } from "framer-motion";
 
-
-// ShadCN Button
-import { Button } from "@/components/ui/button"
+// ShadCN MenuBar
+import {
+  Menubar,
+  // NOTE: The following imports are currently unused. Uncomment if you need them in the future.
+  // MenubarContent,
+  // MenubarItem,
+  // MenubarMenu,
+  // MenubarSeparator,
+  // MenubarShortcut,
+  // MenubarTrigger,
+} from "@/components/ui/menubar"
 
 interface SquareProps {
   value: string | null;
@@ -163,22 +160,6 @@ export default function Game() {
           <ModeToggle />
         </Menubar>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
       <div className="game-board">
         <Board xIsNext={xIsNext} squares={currentSquares} onPlay={handlePlay} />
       </div>
@@ -213,13 +194,9 @@ export default function Game() {
           </motion.div>
         )}
         </AnimatePresence>
-
-
-
     </div>
   );
 }
-
 
 function calculateWinner(squares: (string | null)[]) {
   const lines = [

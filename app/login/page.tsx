@@ -58,10 +58,20 @@ export default function LoginPage() {
         email: validatedData.email,
         password: validatedData.password,
       });
+      
       if (error) {
-        setFormError(error.message || "Login failed");
+        // Provide more specific error messages
+        if (error.message.includes('Invalid login credentials')) {
+          setFormError("Invalid email or password. Please try again.");
+        } else if (error.message.includes('Email not confirmed')) {
+          setFormError("Please verify your email address before logging in.");
+        } else if (error.message.includes('Too many requests')) {
+          setFormError("Too many login attempts. Please try again later.");
+        } else {
+          setFormError(error.message || "Login failed. Please try again.");
+        }
       } else if (data.session) {
-        // Set cookies if needed, or rely on supabase-js
+        // Successfully logged in
         router.push("/home");
       } else {
         setFormError("No session returned. Please check your credentials.");
@@ -76,7 +86,7 @@ export default function LoginPage() {
         });
         setErrors(newErrors);
       } else {
-        setFormError("An unexpected error occurred");
+        setFormError("An unexpected error occurred. Please try again.");
       }
     } finally {
       setIsLoading(false);

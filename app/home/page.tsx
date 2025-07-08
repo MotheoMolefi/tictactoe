@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react";
+import { signOut } from "@/app/actions/auth";
+import { useRouter } from "next/navigation";
 
 // ShadCN Card
 import {
@@ -98,6 +100,7 @@ function Board({ xIsNext, squares, onPlay }: BoardProps) {
 }
 
 export default function Game() {
+  const router = useRouter();
   const [history, setHistory] = useState<(string | null)[][]>([Array(9).fill(null)]);
   const [currentMove, setCurrentMove] = useState<number>(0);
   const [showHistory, setShowHistory] = useState(true); // ✅ now inside component
@@ -116,6 +119,19 @@ export default function Game() {
 
   function toggleHistory() {
     setShowHistory(prev => !prev);
+  }
+
+  async function handleLogout() {
+    try {
+      const result = await signOut();
+      if (result.success) {
+        router.push('/login');
+      } else {
+        console.error('Logout failed:', result.error);
+      }
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
   }
 
   const moves = history.map((squares, move) => {
@@ -158,6 +174,15 @@ export default function Game() {
           <div className="h-5 w-px bg-border" />
 
           <ModeToggle />
+
+          <div className="h-5 w-px bg-border" />
+
+          <span
+            onClick={handleLogout}
+            className="text-sm cursor-pointer text-muted-foreground transition-all duration-200 hover:text-foreground hover:scale-[1.05] select-none"
+          >
+            Logout
+          </span>
         </Menubar>
 
       <div className="game-board">

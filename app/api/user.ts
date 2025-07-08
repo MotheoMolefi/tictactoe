@@ -19,7 +19,11 @@ export async function signUp(email: string, password: string, firstName: string,
 
         if (error) {
             console.error('Error signing up:', error.message)
-            return null
+            // Check if it's a duplicate user error
+            if (error.message.includes('already registered') || error.message.includes('already exists')) {
+                return { error: 'User with this email already exists' }
+            }
+            return { error: error.message }
         }
 
         // Create profile after successful user creation
@@ -45,9 +49,9 @@ export async function signUp(email: string, password: string, firstName: string,
             }
         }
 
-        return data.user
+        return { user: data.user }
     } catch (error) {
         console.error('Error in signUp:', error)
-        return null
+        return { error: 'An unexpected error occurred' }
     }
 }

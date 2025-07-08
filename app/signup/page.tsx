@@ -87,10 +87,13 @@ export default function SignUpPage() {
     
     try {
       const validatedData = formSchema.parse(formData);
-      const user = await signUp(validatedData.email, validatedData.password, validatedData.firstName, validatedData.lastName);
+      const result = await signUp(validatedData.email, validatedData.password, validatedData.firstName, validatedData.lastName);
       
-      if (user) {
-        console.log("User signed up successfully:", user);
+      if (result.error) {
+        console.error("Signup error:", result.error);
+        setGeneralError(result.error);
+      } else if (result.user) {
+        console.log("User signed up successfully:", result.user);
         setShowOTP(true);
       } else {
         console.error("Failed to sign up user");

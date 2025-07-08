@@ -1,44 +1,58 @@
 'use server'
 
-import { cookies } from 'next/headers'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { DataObject } from '../api/verify'
 
 export async function setAuthCookies(data: DataObject) {
-    const cookieStore = await cookies()
+    try {
+        const supabase = await createServerSupabaseClient()
 
-    // Check if session exists first
-    if (!data.session) {
-        console.error('No session found in data')
-        return // or throw an error
+        // Check if session exists first
+        if (!data.session) {
+            console.error('No session found in data')
+            return { error: 'No session found' }
+        }
+
+        const access_token = data.session.access_token
+        const refresh_token = data.session.refresh_token
+
+        // Validate tokens exist
+        if (!access_token || !refresh_token) {
+            console.error('Missing access or refresh token')
+            return { error: 'Missing authentication tokens' }
+        }
+
+        // Set the session using Supabase's built-in cookie management
+        const { error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+        })
+
+        if (error) {
+            console.error('Error setting session:', error)
+            return { error: error.message }
+        }
+
+        return { success: true }
+    } catch (error) {
+        console.error('Error in setAuthCookies:', error)
+        return { error: 'Failed to set authentication cookies' }
     }
+}
 
-    const access_token = data.session.access_token
-    const refresh_token = data.session.refresh_token
-    const expiry = data.session.expires_in
-
-    // Validate tokens exist
-    if (!access_token || !refresh_token) {
-        console.error('Missing access or refresh token')
-        return // or throw an error
+export async function signOut() {
+    try {
+        const supabase = await createServerSupabaseClient()
+        const { error } = await supabase.auth.signOut()
+        
+        if (error) {
+            console.error('Error signing out:', error)
+            return { error: error.message }
+        }
+        
+        return { success: true }
+    } catch (error) {
+        console.error('Error in signOut:', error)
+        return { error: 'Failed to sign out' }
     }
-
-// console.log("Access Token:\n"+access_token)
-// console.log("Refresh Token:\n"+refresh_token)
-// console.log("Expiry Time:\n"+expiry)
-// console.log("Cookies are not being set. Session is there but still getting 403 error.")
-// console.log("Issue is likely in the middleware.ts...")
-
-    cookieStore.set('sb-access-token', access_token,{
-        path: '/',
-        maxAge: expiry,
-        secure: true,
-        sameSite: 'lax'
-    })
-    
-    cookieStore.set('sb-refresh-token', refresh_token, {
-        path: '/',
-        maxAge: expiry,
-        secure: true,
-        sameSite: 'lax'
-    })
 } 

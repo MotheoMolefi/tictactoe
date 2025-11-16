@@ -85,14 +85,15 @@ export async function middleware(request: NextRequest) {
   if (error && error.status !== 0){
     console.log('Session error:', error.message)
   }
+  
   // If accessing protected route and no session, redirect to login
   if (!session && request.nextUrl.pathname.startsWith('/home')) {
     const redirectUrl = new URL('/login', request.url)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If accessing login/signup and already authenticated, redirect to home
-  if (session && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
+  // If accessing login/signup/root and already authenticated, redirect to home
+  if (session && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup' || request.nextUrl.pathname === '/')) {
     const redirectUrl = new URL('/home', request.url)
     return NextResponse.redirect(redirectUrl)
   }

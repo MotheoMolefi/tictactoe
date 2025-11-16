@@ -55,4 +55,24 @@ export async function signOut() {
         console.error('Error in signOut:', error)
         return { error: 'Failed to sign out' }
     }
+}
+
+export async function signIn(email: string, password: string) {
+    try {
+        const supabase = await createServerSupabaseClient()
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        })
+        
+        if (error) {
+            console.error('Error signing in:', error)
+            return { error: error.message }
+        }
+        
+        return { success: true, data }
+    } catch (error) {
+        console.error('Error in signIn:', error)
+        return { error: 'Failed to sign in' }
+    }
 } 

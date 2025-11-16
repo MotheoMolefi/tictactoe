@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase/client";
+import { signIn } from "@/app/actions/auth";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -50,31 +50,30 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     setFormError("");
-    console.log("Error occurs before network call!")
     
     try {
       const validatedData = formSchema.parse(formData);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: validatedData.email,
-        password: validatedData.password,
-      });
+      const result = await signIn(validatedData.email, validatedData.password);
       
-      if (error) {
+      if (result.error) {
+        console.error('Login error:', result.error);
         // Provide more specific error messages
-        if (error.message.includes('Invalid login credentials')) {
+        if (result.error.includes('Invalid login credentials')) {
           setFormError("Invalid email or password. Please try again.");
-        } else if (error.message.includes('Email not confirmed')) {
+        } else if (result.error.includes('Email not confirmed')) {
           setFormError("Please verify your email address before logging in.");
-        } else if (error.message.includes('Too many requests')) {
+        } else if (result.error.includes('Too many requests')) {
           setFormError("Too many login attempts. Please try again later.");
         } else {
-          setFormError(error.message || "Login failed. Please try again.");
+          setFormError(result.error || "Login failed. Please try again.");
         }
-      } else if (data.session) {
-        // Successfully logged in
-        router.push("/home");
+        setIsLoading(false);
+      } else if (result.success) {
+        // Successfully logged in - redirect with hard reload
+        window.location.href = "/home";
       } else {
-        setFormError("No session returned. Please check your credentials.");
+        setFormError("Login failed. Please try again.");
+        setIsLoading(false);
       }
     } catch (error) {
       if (error instanceof z.ZodError) {

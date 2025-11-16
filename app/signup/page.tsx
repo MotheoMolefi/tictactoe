@@ -94,6 +94,11 @@ export default function SignUpPage() {
         setGeneralError(result.error);
       } else if (result.user) {
         console.log("User signed up successfully:", result.user);
+        if (result.warning) {
+          console.warn("Warning:", result.warning);
+          // Show warning but still proceed to OTP
+          setGeneralError(result.warning);
+        }
         setShowOTP(true);
       } else {
         console.error("Failed to sign up user");

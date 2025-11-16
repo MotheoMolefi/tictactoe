@@ -1,35 +1,40 @@
-import { createClient } from '@supabase/supabase-js'
+"use server"
 
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 // Create a simple server-side Supabase client
-export function createServerSupabaseClient() {
-  return createClient(
+export async function createServerSupabaseClient() {
+    let cookieStore = cookies()
+    return createServerClient(
     process.env.SUPABASE_URL!,
-    process.env.SUPABASE_API_KEY!
+    process.env.SUPABASE_API_KEY!,
+    {
+        cookies: {
+          async getAll() {
+            return (await cookieStore).getAll()
+          },
+          async setAll(cookiesToSet) {
+            try {
+              const resolvedCookiesStore = await cookieStore
+              cookiesToSet.forEach(({ name, value, options }) =>
+                resolvedCookiesStore.set(name, value, options)
+              )
+            } catch {}
+          },
+        },
+      }
   )
 }
 
-export async function getSession() {
-  const supabase = createServerSupabaseClient()
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    return session
-  } catch (error) {
-    console.error('Error getting session:', error)
-    return null
-  }
-}
-
-export async function getUser() {
-  const supabase = createServerSupabaseClient()
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    return user
-  } catch (error) {
-    console.error('Error getting user:', error)
-    return null
-  }
-} 
+// export async function getUser() {
+//   const supabase = createServerSupabaseClient()
+//   try {
+//     const {
+//       data: { user },
+//     } = await supabase.auth.getUser()
+//     return user
+//   } catch (error) {
+//     console.error('Error getting user:', error)
+//     return null
+//   }
+// } 

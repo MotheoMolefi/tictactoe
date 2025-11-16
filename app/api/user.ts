@@ -1,6 +1,26 @@
 import { supabase } from '@/lib/supabase/client'
 import { createProfile } from './profile'
 
+// Helper function to retry profile creation
+async function retryProfileCreation(profileData: any, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const profile = await createProfile(profileData)
+            if (profile) {
+                return profile
+            }
+        } catch (error) {
+            console.log(`Profile creation attempt ${attempt} failed:`, error)
+            if (attempt === maxRetries) {
+                throw error
+            }
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, attempt * 500))
+        }
+    }
+    return null
+}
+
 export async function signUp(email: string, password: string, firstName: string, lastName: string) {
     try {
         const { data, error } = await supabase.auth.signUp(
@@ -39,13 +59,24 @@ export async function signUp(email: string, password: string, firstName: string,
                 games_drawn: 0
             }
 
-            const profile = await createProfile(profileData)
-            
-            if (profile) {
-                console.log('Profile created successfully:', profile)
-            } else {
-                console.error('Failed to create profile')
-                // You might want to handle this case - maybe delete the user or show an error
+            try {
+                const profile = await retryProfileCreation(profileData)
+                
+                if (profile) {
+                    console.log('Profile created successfully:', profile)
+                } else {
+                    console.error('Failed to create profile after retries')
+                    return { 
+                        user: data.user, 
+                        warning: 'Account created but profile setup failed. You can still verify your email and log in.' 
+                    }
+                }
+            } catch (profileError) {
+                console.error('Profile creation failed:', profileError)
+                return { 
+                    user: data.user, 
+                    warning: 'Account created but profile setup failed. You can still verify your email and log in.' 
+                }
             }
         }
 

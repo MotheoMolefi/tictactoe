@@ -10,7 +10,6 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 
 const formSchema = z.object({
-  username: z.string().optional(),
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
@@ -24,7 +23,6 @@ type FormData = z.infer<typeof formSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
-    username: "",
     email: "",
     password: "",
   });
@@ -52,6 +50,8 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     setFormError("");
+    console.log("Error occurs before network call!")
+    
     try {
       const validatedData = formSchema.parse(formData);
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -130,23 +130,6 @@ export default function LoginPage() {
           className="space-y-6"
           variants={containerVariants}
         >
-          <motion.div variants={itemVariants} className="space-y-2">
-            <label htmlFor="username" className="text-sm font-medium">
-              Username
-            </label>
-            <Input
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              placeholder="Enter your username (optional)"
-              className={errors.username ? "border-red-500" : ""}
-            />
-            {errors.username && (
-              <p className="text-sm text-red-500">{errors.username}</p>
-            )}
-          </motion.div>
-
           <motion.div variants={itemVariants} className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium">
               Email
